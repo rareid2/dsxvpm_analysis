@@ -84,8 +84,21 @@ def plot_burst(fig, subplot, burst):
     left, bottom, width, height = E_FD.get_position().bounds
     cax = fig.add_axes([left*7.28, bottom, width * 0.02, height])
     ce = fig.colorbar(pe, orientation='vertical', cax=cax)
-    ce.set_label(f'dB[(uV/m)^2/Hz]')
+    ce.set_label('dB[(uV/m)^2/Hz]')
     E_FD.set_ylabel('Frequency [kHz]')
     E_FD.set_xlabel('Time')
 
     return start_timestamp
+
+def plot_shift(subplot, nrays, rayfile_directory, tnt_times_shift, dur_shift, startf_shift, stopf_shift):
+    import os
+    cwd = os.getcwd()
+    from shifts import dopp_delay
+    os.chdir(cwd)
+
+    tnt_dop, tnt_t = dopp_delay(nrays, rayfile_directory, tnt_times_shift, dur_shift, startf_shift, stopf_shift)
+    ax = subplot
+
+    for dopps, tdelays in zip(tnt_dop, tnt_t):
+        for p_d, p_t in zip(dopps, tdelays):
+            ax.scatter(p_t, p_d, color='red',s=2)

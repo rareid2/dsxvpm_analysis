@@ -1,6 +1,20 @@
 import numpy as np 
 import datetime as dt
 import xml.etree.ElementTree as ET
+from os import listdir
+from os.path import isfile, join
+from backports.datetime_fromisoformat import MonkeyPatch
+MonkeyPatch.patch_fromisoformat()
+
+def find_TNT(burst_fname, tnt_path):
+    burst_date = dt.datetime(int(burst_fname[-19:-15]), int(burst_fname[-14:-12]), int(burst_fname[-11:-9]),int(burst_fname[-8:-6]),int(burst_fname[-5:-4]))
+    onlyfiles = [f for f in listdir(tnt_path) if isfile(join(tnt_path, f))]  
+    tnt_dates = [dt.datetime.strptime(f[16:29],'%Y-%m-%d_%H') for f in onlyfiles]
+    for ti, tt in enumerate(tnt_dates):
+        if tt - burst_date < dt.timedelta(hours=1):
+            logfile = tnt_path + onlyfiles[ti]
+    return logfile
+            
 
 def TNT_log(fname):
 	f = open(fname, "r")
@@ -17,7 +31,6 @@ def TNT_log(fname):
 		ymd = dt.datetime.strptime(line[0],'%Y-%m-%d')
 		hms = dt.datetime.strptime(line[1],'%H:%M:%S.%f')
 		tnt_time = ymd + dt.timedelta(hours=hms.hour,minutes=hms.minute,seconds=hms.second,microseconds=hms.microsecond)
-		
 		tnt_times.append(tnt_time)
 		durations.append(float(line[2]))
 		start_f.append(float(line[3]))
