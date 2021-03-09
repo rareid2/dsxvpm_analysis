@@ -7,12 +7,18 @@ from backports.datetime_fromisoformat import MonkeyPatch
 MonkeyPatch.patch_fromisoformat()
 
 def find_TNT(burst_fname, tnt_path):
-    burst_date = dt.datetime(int(burst_fname[-19:-15]), int(burst_fname[-14:-12]), int(burst_fname[-11:-9]),int(burst_fname[-8:-6]),int(burst_fname[-5:-4]))
+    burst_date = dt.datetime(int(burst_fname[-19:-15]), int(burst_fname[-14:-12]), int(burst_fname[-11:-9]),int(burst_fname[-8:-6]),int(burst_fname[-6:-4]))
     onlyfiles = [f for f in listdir(tnt_path) if isfile(join(tnt_path, f))]  
     tnt_dates = [dt.datetime.strptime(f[16:29],'%Y-%m-%d_%H') for f in onlyfiles]
+    logfile = 0
     for ti, tt in enumerate(tnt_dates):
-        if tt - burst_date < dt.timedelta(hours=1):
+        tt.replace(tzinfo=dt.timezone.utc)
+        burst_date.replace(tzinfo=dt.timezone.utc)
+        checkt = burst_date - tt
+        if burst_date.month == tt.month and burst_date.day == tt.day and np.abs(burst_date.hour - tt.hour) < 5:
             logfile = tnt_path + onlyfiles[ti]
+            print(logfile, burst_date)
+
     return logfile
             
 

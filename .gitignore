@@ -3,3 +3,4 @@ dsx_burst/*
 analysis_quicklooks/*
 __pycache__/*
 *.png
+*.xml

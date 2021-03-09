@@ -19,6 +19,7 @@ def dopp_delay(nrays, rayfile_directory, tnt_times_shift, dur_shift, startf_shif
 
     # get angle defs
     thetas, phis = antenna_MC(nrays)
+    phis = np.zeros(nrays)
 
     # change dirs to SR interface
     cwd = os.getcwd()
@@ -38,6 +39,11 @@ def dopp_delay(nrays, rayfile_directory, tnt_times_shift, dur_shift, startf_shif
     # loop through tnt times 
     tnt_dop = []
     tnt_t = []
+
+    #record all shifts
+    alldop = []
+    allsec = []
+    allthetas = []
     for tim, dur, strf, stpf in zip(tnt_times_shift, dur_shift, startf_shift, stopf_shift):
 
         pulse_t = []
@@ -52,7 +58,7 @@ def dopp_delay(nrays, rayfile_directory, tnt_times_shift, dur_shift, startf_shif
             pulse_freqs.append(strf+100)
             pulse_freqs.append(strf-100)
 
-        else:
+        elif dur == 250: # exclude large f ramps
             pulse_t.append(tim)
             pulse_t.append(tim+dt.timedelta(microseconds=dur*1e3))
             pulse_freqs.append(strf)
@@ -93,13 +99,17 @@ def dopp_delay(nrays, rayfile_directory, tnt_times_shift, dur_shift, startf_shif
 
             doppler_shifted = []
             time_shifted = []
-            for r in raylist:
+            for ri, r in enumerate(raylist):
                 rn = r['n']
 
                 first_ind = rn.index[0]
                 final_n = rn.index[-1]
-                
+
                 rtime = r['time']
+
+                # check for bad rays
+                if rtime[final_n] < 0.01: # likely did not propagate then (NEED TO CONFIRM THIS)
+                    continue # go to next ray
 
                 # initial shift
                 nmag = np.sqrt(rn.x[first_ind]**2 + rn.y[first_ind]**2 + rn.z[first_ind]**2)
@@ -114,7 +124,13 @@ def dopp_delay(nrays, rayfile_directory, tnt_times_shift, dur_shift, startf_shif
                 fshift = fshift * (1 - n_d0t_v/C)
         
                 doppler_shifted.append(fshift/1e3)
-                time_shifted.append(dt.timedelta(microseconds=rtime[final_n]) + t_time)
+                time_shifted.append(dt.timedelta(seconds=rtime[final_n]) + t_time)
+                
+                allsec.append(rtime[final_n])
+                alldop.append(fshift-freq)
+                allthetas.append(thetas[ri])
+
+                ray = r
             
             pulse_dop.append(doppler_shifted)
             pulse_tdelay.append(time_shifted)
@@ -122,11 +138,7 @@ def dopp_delay(nrays, rayfile_directory, tnt_times_shift, dur_shift, startf_shif
         # last level
         tnt_dop.append(pulse_dop)
         tnt_t.append(pulse_tdelay)
-    
-    return tnt_dop, tnt_t
 
-# going to need a catch for rays that didn't make it -- time! (less than... 0.1sec?)
-# it would be super cool to do 3 polar plots - atenna gain, shift, tdelay
-# need to confirm DSX orientation - I feel like we need velo with respect to the fieldline? 
-# this assumes the antenna goes in the direction of DSX
-# also need a checkpoint for when this is done!
+        print('tnt time is', tim)
+
+    return tnt_dop, tnt_t, alldop, allsec, allthetas, ray
