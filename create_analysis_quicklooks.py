@@ -7,24 +7,25 @@ from os.path import isfile, join
 cwd = os.getcwd()
 from read_files import find_TNT, TNT_log, read_burst_XML
 from plots import plot_TNT, plot_burst, plot_shift, plot_dist, plot_burst_spaced
-
-burst_dir = 'focus'
+import time
+from shifts import get_lshell_sats
+os.chdir(cwd)
+burst_dir = 'allbursts'
 onlyfiles = [f for f in listdir(burst_dir) if isfile(join(burst_dir, f))] 
 for fi, fname_burst in enumerate(onlyfiles):
+    print(fname_burst)
 
     # get burst data
     burst = read_burst_XML(burst_dir + '/' + fname_burst)
 
     # get TNT log data
     fname_tnt = find_TNT(fname_burst,'TNT_logs/')
-    #if fname_tnt == 0:
-    #    continue
-    #tnttimes, durations, startf, stopf = TNT_log(fname_tnt)
+
     burst_samples = float(burst[0]['config']['SAMPLES_ON']) / float(burst[0]['config']['SAMPLES_OFF'])
     burst_dur = float(burst[0]['config']['burst_pulses']) * 10 + (float(burst[0]['config']['burst_pulses']) * 10 / burst_samples) 
 
     # ------- ------------------ plotting ------------------- -------
-    output = 'quicklooks/'+fname_burst[13:28]
+    output = 'burst_highres/06_10/'+fname_burst[13:28]
     try:  
         os.mkdir(output)  
     except OSError as error:  
@@ -34,6 +35,16 @@ for fi, fname_burst in enumerate(onlyfiles):
             fig, ax2 = plt.subplots(nrows=1, figsize=(6,6), sharex=True, sharey=True)
 
             start_timestamp = plot_burst_spaced(fig, ax2, burst[0], section, chun)
+            if section == 0 and chun == 0:
+                # print(section,chun)
+                # GET LSHELL BUT ONLY ONCE A MIUNTE
+                Lshelldsx = get_lshell_sats(start_timestamp, 44344)
+                # chill out so we dont stress out spacetrak
+                time.sleep(20)
+
+            #Lshellvpm = get_lshell_sats(start_timestamp, 45120)
+
+            os.chdir(cwd)
             
             # some set up for plotting the shifted pulses
             # find 5 seconds before start_timestamp and 5 seconds after -- minimize how much we have to raytrace
@@ -83,13 +94,18 @@ for fi, fname_burst in enumerate(onlyfiles):
             #ax2.plot([start_timestamp + dt.timedelta(seconds=i*0.5) for i in range(30)], np.ones(30)*lhr/1e3, 'w--', )
             if savef !=0:
                 ax2.set_ylim([savef - 2, savef + 2])
-            ax2.set_ylim([2,5])
             """
+
+            if fname_tnt != 0:
+                tnttimes, durations, startf, stopf = TNT_log(fname_tnt)
+                savef = plot_TNT(ax2,tnttimes,durations,startf,stopf)
+            ax2.set_ylim([6,10])
+            
             # ------- --------------------- formatting ------------------------------ -----
             os.chdir(cwd)
             time_str = dt.datetime.strftime(start_timestamp, '%Y-%m-%d %H:%M:%S')
             
-            fig.suptitle('VPM Burst ' + time_str)
+            fig.suptitle('VPM Burst ' + time_str + '\n' + 'DSX Lshell' + str(round(Lshelldsx,1)))
             plt.savefig(output+'/VPMBurst' + time_str+'_section'+str(section))
             #plt.show()
             plt.close()

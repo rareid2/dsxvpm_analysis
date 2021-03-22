@@ -18,7 +18,9 @@ def find_TNT(burst_fname, tnt_path):
         if burst_date.month == tt.month and burst_date.day == tt.day and np.abs(burst_date.hour - tt.hour) < 5:
             logfile = tnt_path + onlyfiles[ti]
             print(logfile, burst_date)
-
+        if burst_date.month == 7 and burst_date.day == 25 and burst_date.month == tt.month and tt.day == 24:
+            logfile = tnt_path + onlyfiles[ti]
+            print(logfile, burst_date)
     return logfile
             
 
@@ -124,5 +126,37 @@ def read_burst_XML(filename):
             d['G'].append(tmp_dict)
         outs.append(d)
 
+    # Return a list of dicts
+    return outs
+
+def read_survey_XML(filename):   
+    ''' Reads survey elements from an xml file. '''
+
+    # Open it
+    with open(filename,'r') as f:
+        tree = ET.parse(f)
+    
+    outs = []
+    
+    # Process all "survey" elements
+    for S in tree.findall('survey'):
+        d = dict()
+        d['E_data'] = np.fromstring(S.find('E_data').text, dtype='uint8', sep=',')
+        d['B_data'] = np.fromstring(S.find('B_data').text, dtype='uint8', sep=',')
+        d['GPS'] = []
+        d['GPS'].append(dict())
+        G = S.find('GPS')
+        for el in G:
+            try:
+                d['GPS'][0][el.tag] = int(el.text)
+            except:
+                d['GPS'][0][el.tag] = float(el.text)
+        outs.append(d)
+
+        header_timestamp_isoformat = S.attrib['header_timestamp']
+        d['header_timestamp'] = dt.datetime.fromisoformat(header_timestamp_isoformat).replace(tzinfo=dt.timezone.utc).timestamp()
+
+        if 'exp_num' in S.attrib:
+            d['exp_num'] = int(S.attrib['exp_num'])
     # Return a list of dicts
     return outs

@@ -7,10 +7,31 @@ sys.path.append('/home/rileyannereid/workspace/SR_interface')
 from satellites import sat
 from get_dist import antenna_MC
 from bfield import getBdir
+from bfield import getBline
+
 from run_rays import single_run_rays, parallel_run_rays
 from raytracer_utils import read_rayfile
 from constants_settings import *
 from convert_coords import convert2
+
+import random
+
+def get_lshell_sats(stime, ss):
+    os.chdir('/home/rileyannereid/workspace/SR_interface')
+    stime = dt.datetime(stime.year,stime.month,stime.day,stime.hour,stime.minute,stime.second,tzinfo=dt.timezone.utc)
+
+    mysat = sat()             # define a satellite object
+    mysat.catnmbr = ss        # provide NORAD ID
+    mysat.time = stime        # set time
+    mysat.getTLE_ephem()      # get TLEs nearest to this time -- sometimes this will lag
+
+    # propagate the orbit! setting sec=0 will give you just the position at that time
+    mysat.propagatefromTLE(sec=0, orbit_dir='future', crs='SM', carsph='car', units=['m','m','m'])
+
+    satpos = mysat.pos
+    thatline = getBline(satpos[0], stime)
+
+    return thatline.Lshell
 
 def dopp_delay(nrays, rayfile_directory, tnt_times_shift, dur_shift, startf_shift, stopf_shift):
 
@@ -19,6 +40,13 @@ def dopp_delay(nrays, rayfile_directory, tnt_times_shift, dur_shift, startf_shif
 
     # get angle defs
     thetas, phis = antenna_MC(nrays)
+
+    thetas = []
+    for nr in range(nrays//2):
+        th = random.randrange(60, 90)
+        th = random.randrange(-90, -60)
+        thetas.append(th)
+    
     phis = np.zeros(nrays)
 
     # change dirs to SR interface
