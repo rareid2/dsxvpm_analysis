@@ -17,14 +17,11 @@ def plot_TNT(subplot, tnttimes, durations, startf, stopf):
             ax.plot([tim, tim + dt.timedelta(microseconds=75e3)],[start/1e3,(start+100)/1e3],'white')
             ax.plot([tim + dt.timedelta(microseconds=75e3),tim + dt.timedelta(microseconds=150e3)],[(start+100)/1e3,(start-100)/1e3],'red')
             savef = start/1e3
-        elif dur == 250:
-            savef = start/1e3
-            ax.plot([tim, tim + dt.timedelta(microseconds=dur*1e3)],[start/1e3,stop/1e3],'white')
-        else:
-            savef = 0
-            ax.plot([tim, tim + dt.timedelta(microseconds=dur*1e3)],[start/1e3,stop/1e3],'white',zorder=100)
-
-    ax.set_ylabel('Frequency [kHz]')
+        elif# we need the positions of the satellites -- use the sat class
+dsx = sat()             # define a satellite object
+dsx.catnmbr = 44344     # provide NORAD ID
+dsx.time = ray_datenum  # set time
+#dsx.getTLE_ephem()      # get TLEs nearest to this time -- sometimes this will laglabel('Frequency [kHz]')
     ax.tick_params(labelsize=7)
     if len(durations) < 1:
         savef = 0
