@@ -24,12 +24,12 @@ rayfile_directory = '/home/rileyannereid/workspace/SR_output' # store output her
 
 # set mode and nrays and time increment
 md = 7
-time_inc = [0,15,30]
-run_the_rays=False
+time_inc = [0]
+run_the_rays = False
 nrays = 10000
 
 # set burst start time and frequency
-dd = dt.datetime(2020,4,6,22,4,30,tzinfo=dt.timezone.utc)
+dd = dt.datetime(2020,4,6,22,5,0,tzinfo=dt.timezone.utc)
 freq = 8.2e3
 
 for tt in time_inc:
@@ -116,6 +116,9 @@ for tt in time_inc:
             else:
                 lines.append(float(line.split()[1]))
         damping=lines
+        
+        for i in range(1893654 - 1829130):
+            damping.append(1)
         """
         # plots relative power 2D, returns maximum refractive index from ra (uses Stix params function)
         nmax = plotray2D(ray_datenum, raylist, ray_out_dir, 'GEO', 'car', ['Re','Re','Re'], md, show_plot=False,plot_density=True,damping_vals=None,theta_file=th_file)
@@ -149,6 +152,7 @@ for tt in time_inc:
             ray_coords.append(new_coords)
 
         # plot a histogram real quick of the rays that reflected
+        """
         for rcs in ray_coords:
             ray_sph = convert2(rcs, tvec_datetime, crs, carsph, units, 'GEO', 'sph', ['m','deg','deg'])
             last_la = 0 
@@ -159,8 +163,7 @@ for tt in time_inc:
                     print(rc[0]) # save the turn altitude
                 last_lg = lg
                 last_la = rc[1]
-
-
+        """
         # set up plot
         fig = plt.figure(figsize=(11,8))
         ax = fig.add_subplot(1, 1, 1, projection=ccrs.PlateCarree())
@@ -197,7 +200,7 @@ for tt in time_inc:
         extent = [checklon-5,checklon+5,checklat-5,checklat+5]
         damp_ind = 0
 
-        # loop through all rays
+        # loop through all rays again
         for rr,nmagi,nmag in zip(ray_coords,n_magsi,n_mags):
             damp_ind += len(rr)-1
 
@@ -225,7 +228,7 @@ for tt in time_inc:
 
                     # weight each ray to get relative power in each bin
                     # includes the final index of refraction as well
-                    #weights.append(damping[damp_ind]*the_weight/nmagf)
+                    #weights.append(damping[damp_ind]*the_weight/n_final)
                     weights.append(the_weight/n_final)
 
                     break
@@ -252,9 +255,11 @@ for tt in time_inc:
         a2 = geodesic(start_d2,end_d2).meters
         bin_area = a1*a2
 
-        # finally get to V/m
-        E_field = np.sqrt( 2*h[0] / ( C*EPS0*bin_area ))
-        ef_c = ax.pcolormesh(np.array(binlon),np.array(binlat), E_field,vmin=0,vmax=0.0005, zorder=10,alpha=0.5)
+        # how many total watts? 
+        wpr = 10/nrays
+        # finally get to V/m 
+        E_field = np.sqrt( 2*wpr*h[0] / ( C*EPS0*bin_area ))
+        ef_c = ax.pcolormesh(np.array(binlon),np.array(binlat), E_field, zorder=10,alpha=0.5)
 
         cmin,cmax = h[3].get_clim()
         cax = ax.inset_axes([1.15, 0.2, 0.05, 0.6], transform=ax.transAxes)
@@ -262,7 +267,7 @@ for tt in time_inc:
         cbar = plt.colorbar(ef_c,ax=ax, cax=cax,shrink=0.45)
 
         # plot DSX fieldline footprint
-        T = getBline(ray_start,ray_datenum,475)
+        T = getBline(ray_start[0],ray_datenum,475)
         
         # repack
         T_repackx = T.x
@@ -271,8 +276,8 @@ for tt in time_inc:
         T_repack = [[tx, ty, tz] for tx,ty,tz in zip(T_repackx, T_repacky, T_repackz)]
         T_footpoint = T_repack[-1]
         
-        T_convert = convert2(T_footpoint, [ray_datenum], 'SM','car',['Re','Re','Re'], crs, 'sph', ['Re','deg','deg'])
-        ax.scatter(T_convert[2],T_convert[1],c='k',marker='*')
+        T_convert = convert2([T_footpoint], [ray_datenum], 'SM','car',['Re','Re','Re'], crs, 'sph', ['Re','deg','deg'])
+        ax.scatter(T_convert[0][2],T_convert[0][1],c='k',marker='*')
 
         # plot vpm
         ax.plot(vlons,vlats) 
@@ -285,6 +290,6 @@ for tt in time_inc:
         plt.title(dt.datetime.strftime(ray_datenum,'%Y-%m-%d %H:%M:%S'))
 
         plt.savefig(ray_out_dir+'/'+dt.datetime.strftime(ray_datenum,'%Y%m%d_%H%M%S') + 'rayspotLEO_'+str(md)+'.png')
-        #plt.show()
+        plt.show()
 
         plt.close()
