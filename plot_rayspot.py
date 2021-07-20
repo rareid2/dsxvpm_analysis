@@ -21,23 +21,26 @@ from ray_plots import plotray2D, plotrefractivesurface, plotgeomfactor, stix_par
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 rayfile_directory = '/media/rileyannereid/DEMETER/SR_output' # store output here
-# BE SURE TO CHECK THAT THE CORRECT STOP CONDS ARE IN THE RAYTRACER
-# BE SURE TO CHANGE RAY PLOTS TO CORRECT WATTAGE AND HERE BELOW
-# set mode and nrays and time increment
-md = 6 # or 7
+# BE SURE TO CHECK THAT THE CORRECT STOP CONDS ARE IN THE RAYTRACER!!!!!!!!!
+
+# setup
+md = 7 # or 7
+nrays = 1000
+nworkers = 16
+wpr = 10/nrays
+freq = 8.2e3
+
 run_the_rays = False
 run_damp = False
 
-nrays = 10000
-nworkers = 16
-
+# set increment in time for the burst
+ray_date_start = dt.datetime(2020,6,1,1,46,50,tzinfo=dt.timezone.utc)
 tt_increment = [0]
 
 # set burst start time and frequency
 if run_the_rays == True:
     for tti in tt_increment:
-        ray_datenum = dt.datetime(2020,5,19,15,47,45,tzinfo=dt.timezone.utc)+dt.timedelta(seconds=tti)
-        freq = 8.2e3
+        ray_datenum = ray_date_start+dt.timedelta(seconds=tti)
 
         # we need the positions of the satellites -- use the sat class
         dsx = sat()             # define a satellite object
@@ -79,10 +82,6 @@ if run_the_rays == True:
 
         # get directions and resonance cone
         directions, ra, thetas, phis = getBdir(ray_start, ray_datenum, rayfile_directory, thetas, phis, md, select_random=True)
-
-        nrays = len(thetas) # how many rays
-        print(nrays) # just verify this is right
-        
         # break up the starting directions 
         directions_list = [directions[int(i * (nrays/nworkers)):int((i+1)*nrays/nworkers)] for i in range(nworkers)]
         print('RUNNING ', nrays, nrays/nworkers)
@@ -99,7 +98,7 @@ if run_the_rays == True:
         parallel_run_rays(tvec, positions, directions_list, freqs_list, directory_list, mds)
 
 elif run_damp:
-    ray_datenum = dt.datetime(2020,6,1,1,46,50,tzinfo=dt.timezone.utc) # just run damping once -- but going to need to add this in correctly down there
+    ray_datenum = ray_date_start # just run damping once for the first time step
     ray_out_dir = rayfile_directory + '/'+dt.datetime.strftime(ray_datenum, '%Y-%m-%d_%H_%M_%S')
     # get damping output to scale power -- run for each mode
     
@@ -173,9 +172,8 @@ elif run_damp:
 # just plotting
 else:
     for tti in tt_increment:
-        ray_datenum = dt.datetime(2020,6,1,1,46,50,tzinfo=dt.timezone.utc)+dt.timedelta(seconds=tti)
+        ray_datenum = ray_date_start+dt.timedelta(seconds=tti)
         ray_out_dir = rayfile_directory + '/'+dt.datetime.strftime(ray_datenum, '%Y-%m-%d_%H_%M_%S')
-        freq = 30e3
 
         vpm = sat()    
         vpm.catnmbr = 45120 
@@ -230,7 +228,8 @@ else:
         damping_list = [list(tt_array),avg_damp]
 
         # plots relative power 2D, returns maximum refractive index from ra (uses Stix params function)
-        nmax = plotray2D(ray_datenum, raylist, ray_out_dir, 'GEO', 'car', ['Re','Re','Re'], md, show_plot=False,plot_density=True,damping_vals=damping_list)
+        nmax, max_wna = plotray2D(ray_datenum, raylist, ray_out_dir, 'GEO', 'car', ['Re','Re','Re'], md, show_plot=True,plot_density=False,damping_vals=damping_list)
+        nmax, max_wna = plotray2D(ray_datenum, raylist, ray_out_dir, 'GEO', 'car', ['Re','Re','Re'], md, show_plot=False,plot_density=True,damping_vals=damping_list)
 
         ray_coords = []
         n_magsi = []
@@ -239,7 +238,9 @@ else:
         ray_count = 0
         # go through all rays, get the coords, n
         thetas_save = []
+        #stopconds = []
         for r in raylist:
+            #stopconds.append(r['stopcond'])
             ray_count += 1
             tmp_coords = list(zip(r['pos'].x, r['pos'].y, r['pos'].z))
 
@@ -344,7 +345,8 @@ else:
                     wna_weights.append(th)
                     
                     # weight by initial wavenormal
-                    the_weight = nmagi/nmax
+                    #the_weight = np.exp(-0.1*(max_wna - th))* (nmagi/nmax)**2
+                    the_weight = (nmagi/nmax)**2
 
                     # weight each ray to get relative power in each bin
                     # includes the final index of refraction as well
@@ -387,8 +389,6 @@ else:
         dy = binlat[1] - binlat[0]
         dx = binlon[1] - binlon[0]
 
-        # how many total watts? 
-        wpr = 10/nrays
         # finally get to V/m 
         E_field = np.sqrt( 2*wpr*hw[0] / ( C*EPS0*bin_area ))
         # for power
@@ -457,8 +457,11 @@ else:
 
         # lastly, the top histogram
         reflected_above = 0
+        #reflected_above2 = 0
         xaxis = [10,15,20,25,30,35,40,45,50,55,60,65,70,75,80,85]
         refl_th = np.zeros(len(xaxis))
+        #refl_th2 = np.zeros(len(xaxis))
+
         for rci,(rcs,th) in enumerate(zip(ray_coords,thetas_save)):
             lasta = R_E
             loop_run = 0
@@ -484,8 +487,15 @@ else:
                 # reset
                 lasta = rc[0]
 
+            # get the rays that stopped
+            #if sc !=1:
+            #    reflected_above2+=1
+            #    for xi,xbar in enumerate(xaxis):
+            #        if np.abs(th) < xbar:
+            #            refl_th2[xi] += 1
+            #            break
+       
         bar_heights = list(100*refl_th/reflected_above)
-        print(reflected_above)
 
         ax1.vlines(x=xaxis, ymin=0, ymax=bar_heights, color='#9ca4dc', alpha=0.2, linewidth=5)
         ax1.plot(xaxis, bar_heights, "o", markersize=5, color='#9ca4dc', alpha=0.6)

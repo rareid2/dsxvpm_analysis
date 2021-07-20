@@ -36,7 +36,7 @@ n_magsf = []
 n_mags = []
 
 thetas_save = []
-nmax = plotray2D(ray_datenum, raylist, ray_out_dir, 'GEO', 'car', ['Re','Re','Re'], md, show_plot=False,plot_density=True,damping_vals=None)
+nmax, max_wna = plotray2D(ray_datenum, raylist, ray_out_dir, 'GEO', 'car', ['Re','Re','Re'], md, show_plot=False,plot_density=True,damping_vals=None)
 
 for r in raylist:
     w = r['w']
@@ -67,10 +67,10 @@ for r in raylist:
     alphaedg = float(alpha)*R2D
     thetas_save.append(alphaedg)
 #nmax=2045
-#the_weight = (np.array(n_magsi)**2)/nmax
+the_weight = np.exp(-0.1*(max_wna - np.array(thetas_save)))* (np.array(n_magsi)**2)/nmax**2
 fig, ax = plt.subplots(1,1)
 plt.style.use('seaborn-whitegrid')
 ax.scatter(thetas_save,the_weight,marker='.', color='black')
-ax.set_ylim([0,0.5])
+#ax.set_ylim([0,0.5])
 plt.show()
 plt.close()

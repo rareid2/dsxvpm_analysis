@@ -5,117 +5,16 @@ os.chdir('/home/rileyannereid/workspace/SR_interface')
 import sys
 sys.path.append('/home/rileyannereid/workspace/SR_interface') 
 from run_rays import single_run_rays, parallel_run_rays
+from ray_plots import plotray2D
 from bfield import getBdir
 from raytracer_utils import read_rayfile, read_input_jobs, read_damp_matlab, read_bigrayfile, read_bigrayfile_in
 from constants_settings import *
 from convert_coords import convert2
 import matplotlib.pyplot as plt
+from scipy.interpolate import interp1d
+from matplotlib.ticker import FormatStrFormatter
 
-from ray_plots import plotray2D
-
-def read_omni_data(fname):
-    f = open(fname)
-    Kps = []
-    for line in f:
-        lines = line.split()
-        Kp = float(lines[38])
-        Kps.append(Kp)
-    return Kps
-
-
-# get input coordinates
-nrays = 125610
-lats, lons, psds = read_input_jobs('/media/rileyannereid/DEMETER/SR_output/NWC_inputs/coord_1988_fit_01.txt')
-#lats = lats[100:600]
-#lons = lons[100:600]
-
-nworkers = 16
-#lats = np.linspace(-41,-1,4001)
-#lons = 113*np.ones(4001)
-
-#frequencies = [ 0.5,  1. ,  1.5,  2. ,  2.5,  3. ,  3.5,  4. ,  4.5,  5. , 5.5,  6. ,  6.5,  7. ,  7.5,  8. ,  8.5,  9. ,  9.5, 10. , 10.5, 11. , 11.5, 12. ]
-rayfile_directory = '/home/rileyannereid/workspace' # store output here
-ray_datenum = dt.datetime(2020,6,1,12,0, tzinfo=dt.timezone.utc)
-# theta = 0 goes north, theta=180 goes south
-
-#mds = [6]
-#for md in mds:
-#    for freq in frequencies:
-#        latitudes = [-70., -63., -56., -49., -42., -35., -28., -21., -14.,  -7.,   0., 7.,  14.,  21.,  28.,  35.,  42.,  49.,  56.,  63.,  70.]
-#        longitudes = [-180., -160., -140., -120., -100.,  -80.,  -60.,  -40.,  -20.,  0.,   20.,   40.,   60.,   80.,  100.,  120.,  140.,  160., 180.]
-#        nrays = len(latitudes)
-#        positions = []
-#        dirs  = []
-#        count = 0
-
-md = 7
-positions = []
-pos_order = []
-count = 0
-for la, lo in zip(lats,lons):
-    tx_loc = [R_E+500e3, la, lo] # set location
-    # convert to SM car for field line tracer
-    tx_loc = convert2([tx_loc], [ray_datenum], 'GEO','sph',['m','deg','deg'], 'SM', 'car', ['m','m','m'])
-    positions.append(tx_loc[0])
-    # save lat long pair
-    pos_order.append((la,lo))
-
-    #directions, ra, thetas, phis = getBdir(tx_loc, ray_datenum, rayfile_directory, thetas, np.zeros(len(thetas)), md)
-    #dirs.append(directions[0])
-    #print(directions[0])
-
-    count+=1
-    #print(count)
-
-# going to have to divide by 16*3000 -- about 10.5
-# nrays = 48000
-# positions = positions[0:nrays]
-
-positions_list = [positions[int(i * (nrays/nworkers)):int((i+1)*nrays/nworkers)] for i in range(nworkers)]
-freq = 19.88e3  # Hz
-freqs = [freq for n in range(len(positions))]
-dirs = [np.zeros(3) for i in range(len(positions))]
-tvec = [ray_datenum for n in range(nworkers)]
-
-directions_list = [dirs for i in range(len(tvec))]
-freqs_list = [freqs for i in range(len(tvec))]
-directory_list = [rayfile_directory for i in range(len(tvec))]
-mds = [md for i in range(len(tvec))]
-
-#for p in positions_list:
-#    print(len(p))
-#print([(int(i * (nrays/nworkers)),int((i+1)*nrays/nworkers)) for i in range(nworkers)])
-
-parallel_run_rays(tvec, positions_list, directions_list, freqs_list, directory_list, mds)
-
-#single_run_rays(ray_datenum, positions, dirs, freqs, rayfile_directory, md)
-
-# ------------------------------------- output -------------------------------------------------
-# that's it! let's look at output
-# Load all the rayfiles in the output directory
-ray_out_dir = rayfile_directory + '/'+dt.datetime.strftime(ray_datenum, '%Y-%m-%d_%H_%M_%S')
-file_titles = os.listdir(ray_out_dir)
-
-mode_name = 'mode'+str(md)
-fray_data = []
-initial_raydata = []
-raylist = []
-x = sorted(file_titles)
-for filename in x:
-    if '.ray' in filename and mode_name in filename:
-        #raylist += read_rayfile(os.path.join(ray_out_dir, filename))
-        print(filename)
-        #print(len(raylist))
-        some_ray_data, init_ray_data = read_bigrayfile(os.path.join(ray_out_dir, filename))
-        fray_data.append(some_ray_data)
-
-        #init_ray_data = read_bigrayfile_in(os.path.join(ray_out_dir, filename))
-        initial_raydata.append(init_ray_data)
-
-# flatten
-#ray_data = [item for sublist in fray_data for item in sublist]
-#plotray2D(ray_datenum, raylist, ray_out_dir, 'GEO', 'car', ['Re','Re','Re'], md)
-
+# ...................................................helper funcs...................................
 def write_to_txt(raylist):
     
     ray_count = 0
@@ -138,7 +37,7 @@ def write_to_txt(raylist):
         a_file.write(' '.join(line) + "\n") 
     
     a_file.close()
-    print(ray_count,bad_ray)
+    print(ray_count)
     colors= np.linspace(0,len(xs),num=len(xs))
     plt.scatter(xs,ys,c=colors)
     plt.show()
@@ -165,28 +64,126 @@ def find_init_list(raylist):
     print(ray_count)
     return final_list
 
-inital_pos = find_init_list(initial_raydata)
-inital_pos = np.array(inital_pos)
+def read_omni_data(fname):
+    f = open(fname)
+    Kps = []
+    for line in f:
+        lines = line.split()
+        Kp = float(lines[38])
+        Kps.append(Kp)
+    return Kps
 
-# now we have the initial positions and the expected initial positions, we need to find the index that matches each
 def closest_node(node, nodes):
     nodes = np.asarray(nodes)
     deltas = nodes - node
     dist_2 = np.einsum('ij,ij->i', deltas, deltas)
     return np.argmin(dist_2)
+# ...............................................................................................................
 
-flat_list_rays = [item for sublist in fray_data for item in sublist]
+# get input coordinates
+nrays = 125610
+lats, lons, psds = read_input_jobs('/media/rileyannereid/DEMETER/SR_output/NWC_inputs/coord_1988_fit_01.txt')
+nworkers = 16
+md = 7
+freq = 19.88e3  # Hz
+ray_datenum = dt.datetime(2020,6,1,12,0, tzinfo=dt.timezone.utc)
 
-rays_in_order = []
-#po = pos_order[424078]
-# hoping that po is a tuple
-# print it 
-for pi,po in enumerate(pos_order):
-    print(pi)
-    idx = closest_node(po,inital_pos)
-    rays_in_order.append(flat_list_rays[idx])
+#frequencies = [ 0.5,  1. ,  1.5,  2. ,  2.5,  3. ,  3.5,  4. ,  4.5,  5. , 5.5,  6. ,  6.5,  7. ,  7.5,  8. ,  8.5,  9. ,  9.5, 10. , 10.5, 11. , 11.5, 12. ]
+rayfile_directory = '/home/rileyannereid/workspace' # store output here
+
+positions = []
+pos_order = []
+count = 0
+
+indxs = []
+for la, lo in zip(lats,lons):
+    tx_loc = [R_E+500e3, la, lo] # set location
+    # convert to SM car for field line tracer
+    tx_loc = convert2([tx_loc], [ray_datenum], 'GEO','sph',['m','deg','deg'], 'SM', 'car', ['m','m','m'])
+    positions.append(tx_loc[0])
+    # save lat long pair
+    pos_order.append((la,lo))
+    count+=1
+    if la < -30:
+        if lo < 110:
+            indxs.append(count)
+            
+positions_list = [positions[int(i * (nrays/nworkers)):int((i+1)*nrays/nworkers)] for i in range(nworkers)]
+freqs = [freq for n in range(len(positions))]
+dirs = [np.zeros(3) for i in range(len(positions))]
+tvec = [ray_datenum for n in range(nworkers)]
+
+directions_list = [dirs for i in range(len(tvec))]
+freqs_list = [freqs for i in range(len(tvec))]
+directory_list = [rayfile_directory for i in range(len(tvec))]
+mds = [md for i in range(len(tvec))]
+
+#parallel_run_rays(tvec, positions_list, directions_list, freqs_list, directory_list, mds)
+
+# ------------------------------------------------------- output --------------------------------------------------------------------------
+# that's it! let's look at output
+ray_out_dir = rayfile_directory + '/'+dt.datetime.strftime(ray_datenum, '%Y-%m-%d_%H_%M_%S')
+file_titles = os.listdir(ray_out_dir)
+mode_name = 'mode'+str(md)
+
+fray_data = []
+initial_raydata = []
+nraylist = []
+imgs = []
+x = sorted(file_titles)
+for filename in x:
+    if '.ray' in filename and mode_name in filename:
+        if '01' in filename or '02' in filename or '03' in filename or '04' in filename or '05' in filename:
+            nraylist += read_rayfile(os.path.join(ray_out_dir, filename))
+            print(filename)
+
+            #some_ray_data, init_ray_data = read_bigrayfile(os.path.join(ray_out_dir, filename))
+            #fray_data.append(some_ray_data)
+            #initial_raydata.append(init_ray_data)
+
+#inital_pos = find_init_list(initial_raydata)
+#inital_pos = np.array(inital_pos)
+
+# now we have the initial positions and the expected initial positions, we need to find the index that matches each
+#flat_list_rays = [item for sublist in fray_data for item in sublist]
+
+#rays_in_order = [] 
+#for pi,po in enumerate(pos_order):
+#    idx = closest_node(po,inital_pos)
+#    rays_in_order.append(flat_list_rays[idx])
+
+mirrored_rays = 0
+rays_in_region = 0
+start_lats = []
+start_lons = []
+
+for ri, r in enumerate(nraylist):
+    print(ri, ' out of', len(nraylist))
+    tmp_coords = list(zip(r['pos'].x, r['pos'].y, r['pos'].z))
+    tvec_datetime = [ray_datenum + dt.timedelta(seconds=s) for s in r['time']]
+    new_coords = convert2(tmp_coords, tvec_datetime ,'SM', 'car', ['m','m','m'], 'GEO', 'sph', ['m','deg','deg'])
+    new_coords_mag = convert2(tmp_coords, tvec_datetime ,'SM', 'car', ['m','m','m'], 'MAG', 'sph', ['m','deg','deg'])
     
-write_to_txt(rays_in_order)
+    # plot those from the correct region
+    fnc = new_coords[0] # in geographic
+    if fnc[1] < -25 and fnc[2] < 110:
+        rays_in_region+=1
+        if r['stopcond'] !=1:
+            # make sure it actually mirrored
+            for fni,fnm in enumerate(new_coords):
+                if fnm[1] - new_coords_mag[fni+1][1] > 0 and fnm[1]> 10:
+                    mirrored_rays+=1
+                    start_lats.append(fnc[1])
+                    start_lons.append(fnc[2])
+                    
+                    break
+print(rays_in_region,mirrored_rays)                
+fig, ax = plt.subplots()
+ax.hist2d(start_lons,start_lats,cmap='Blues')
+plt.show()
+plt.close()
+
+#write_to_txt(save_some)
 
 """
 # need ray positions traced above ionosphere 1000km
@@ -320,3 +317,13 @@ ax.gridlines(crs=ccrs.PlateCarree(), draw_labels=True,
                   linewidth=2, color='gray', alpha=0.5, linestyle='--')
 plt.show()
 """
+
+#mds = [6]
+#for md in mds:
+#    for freq in frequencies:
+#        latitudes = [-70., -63., -56., -49., -42., -35., -28., -21., -14.,  -7.,   0., 7.,  14.,  21.,  28.,  35.,  42.,  49.,  56.,  63.,  70.]
+#        longitudes = [-180., -160., -140., -120., -100.,  -80.,  -60.,  -40.,  -20.,  0.,   20.,   40.,   60.,   80.,  100.,  120.,  140.,  160., 180.]
+#        nrays = len(latitudes)
+#        positions = []
+#        dirs  = []
+#        count = 0
