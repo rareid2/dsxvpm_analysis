@@ -1,12 +1,4 @@
 TNT_logs/*
-dsx_burst/*
-analysis_quicklooks/*
 __pycache__/*
-*.png
-*.xml
-SEA/*
-817/*
-allbursts/*
-burst_highres/*
-dsx_burst_noTNT/*
-dsx_burst_TNT/*
+code_from_michael/*
+burst_plots_sectioned/*
