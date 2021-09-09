@@ -7,6 +7,8 @@ from parula_colormap import parula
 import scipy.signal
 import matplotlib.gridspec as GS
 
+# some helper functions for plotting VPM burst data etc. 
+
 def plot_TNT(subplot, tnttimes, durations, startf, stopf): 
     ax = subplot
     for di, dur in enumerate(durations):
@@ -17,11 +19,7 @@ def plot_TNT(subplot, tnttimes, durations, startf, stopf):
             ax.plot([tim, tim + dt.timedelta(microseconds=75e3)],[start/1e3,(start+100)/1e3],'white')
             ax.plot([tim + dt.timedelta(microseconds=75e3),tim + dt.timedelta(microseconds=150e3)],[(start+100)/1e3,(start-100)/1e3],'red')
             savef = start/1e3
-        elif# we need the positions of the satellites -- use the sat class
-dsx = sat()             # define a satellite object
-dsx.catnmbr = 44344     # provide NORAD ID
-dsx.time = ray_datenum  # set time
-#dsx.getTLE_ephem()      # get TLEs nearest to this time -- sometimes this will laglabel('Frequency [kHz]')
+
     ax.tick_params(labelsize=7)
     if len(durations) < 1:
         savef = 0

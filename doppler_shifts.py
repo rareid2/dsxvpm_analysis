@@ -16,6 +16,9 @@ from convert_coords import convert2
 
 import random
 
+# function to find doppler shifts from satellite velocities
+
+
 def get_lshell_sats(stime, ss):
     os.chdir('/home/rileyannereid/workspace/SR_interface')
     stime = dt.datetime(stime.year,stime.month,stime.day,stime.hour,stime.minute,stime.second,tzinfo=dt.timezone.utc)

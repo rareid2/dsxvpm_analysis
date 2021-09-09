@@ -1,4 +1,4 @@
-# austins thesis code
+# austins thesis code - trace a magnetic field line
 import numpy as np
 import spacepy.irbempy as irbem
 import spacepy.time as spt
@@ -31,7 +31,7 @@ def trace_fieldline_ODE_3D(p0, stopalt, dtime, bmodel, extfield, direction):
     x = []
     y = []
     z = []
-    dt = 0.05 # step size 
+    dt = 1e-4 # step size 
     r = ode(B_dir_3D)
     r.set_integrator('vode')
     
@@ -51,7 +51,7 @@ def trace_fieldline_ODE_3D(p0, stopalt, dtime, bmodel, extfield, direction):
             print('hit the Earth')
             break
             
-        if counts > 1000:
+        if counts > 1e7:
             print('max count')
             break
         
@@ -62,7 +62,7 @@ def trace_fieldline_ODE_3D(p0, stopalt, dtime, bmodel, extfield, direction):
     #return np.array(x), np.array(y), np.array(z)
     return x[-1], y[-1], z[-1]
 
-def get_bfield_irbem(x,dtime,bmodel,extfield,direction):
+def get_bfield_irbem(x,dtime,bmodel,extfield):
 
     pos = spc.Coords([x[0],x[1], x[2]],'GEO','car')
     tv = spt.Ticktock(dtime)

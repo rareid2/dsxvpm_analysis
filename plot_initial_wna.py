@@ -15,6 +15,9 @@ import math
 from planes import isect_line_plane_v3
 rayfile_directory = '/home/rileyannereid/workspace/SR_output' # store output here
 
+# a script to plot the process of finding initial wnas in the resonance cone
+
+
 # set burst start time and frequency
 dd = dt.datetime(2020,4,6,22,4,30,tzinfo=dt.timezone.utc)
 freq = 8.2e3

@@ -6,6 +6,8 @@ from os.path import isfile, join
 from backports.datetime_fromisoformat import MonkeyPatch
 MonkeyPatch.patch_fromisoformat()
 
+# some helper functions for reading TNT files and burst XMLs
+
 def find_TNT(burst_fname, tnt_path):
     burst_date = dt.datetime(int(burst_fname[-19:-15]), int(burst_fname[-14:-12]), int(burst_fname[-11:-9]),int(burst_fname[-8:-6]),int(burst_fname[-6:-4]))
     onlyfiles = [f for f in listdir(tnt_path) if isfile(join(tnt_path, f))]  

@@ -15,6 +15,9 @@ import random
 from ray_plots import plotray2D
 import matplotlib.pyplot as plt
 
+# code used to run some tests for looking into the 'gap' that shows up when tracing transmitters
+
+
 # get input coordinates
 """
 nrays = 5013

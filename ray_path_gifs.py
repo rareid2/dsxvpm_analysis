@@ -23,6 +23,8 @@ from planes import isect_line_plane_v3
 from simplegifs_func import simplegifs
 import math
 
+# script to create gifs along ray trajectory
+
 # helpers
 from scipy.interpolate import interp1d
 

@@ -11,6 +11,8 @@ from convert_coords import convert2
 import datetime as dt
 md = 6
 
+# plots initial wna distribution
+
 ray_datenum = dt.datetime(2020,5,19,15,47,45,tzinfo=dt.timezone.utc)
 
 ray_out_dir = '/media/rileyannereid/DEMETER/SR_output/2020-05-19_15_47_45/'

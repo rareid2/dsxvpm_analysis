@@ -88,7 +88,6 @@ def get_edens(rgeo, ray_datenum): # input in Mm
 
     phi = np.arcsin(rgeo[2]/r)         # latitude
     L = (r/R_E) / (np.cos(phi)**2)     # L shell
-
     h = r - R_E                        # height [Mm]
     r0 = R_E + ohtransheight           # geocentric transition height [Mm]
     R = r / r0                         # geocentric height ratio
@@ -125,20 +124,24 @@ def get_edens(rgeo, ray_datenum): # input in Mm
     stopalt = OHTransitionHeight
 
     # just go to whichever hemi is closest (check sign of latitude)
-    if phi > 0:
-        direction = 1
-    else:
+    if phi < 0:
         direction = -1
+    else: # northern hemisphere or equator
+        direction = 1
+    if h < ohtransheight: # if under the transition height, flip direction in tracing
+        print('under OH height')
+        direction = direction*-1
 
     # returns location of footpoint in GEO car Re
     Bx, By, Bz = trace_fieldline_ODE_3D(pos0, stopalt, ray_datenum, bmodel, extfield, direction)
 
     # need the Bfield here and at the start location
     posB = [Bx,By,Bz]
-    Bmag_OH = get_bfield_irbem(posB,ray_datenum,bmodel,extfield,direction)
-    Bmag = get_bfield_irbem(pos0,ray_datenum,bmodel,extfield,direction)
+    Bmag_OH = get_bfield_irbem(posB,ray_datenum,bmodel,extfield)
+    Bmag = get_bfield_irbem(pos0,ray_datenum,bmodel,extfield)
 
     zbrat = Bmag/Bmag_OH
+    print(zbrat)
 
     # The predicted electron density
     ne = np.sqrt((etransdens * ohtranstemp) * zbrat * ((n10 * ohtranstemp) * np.exp(-z / H1)  + (n30 * ohtranstemp) * np.exp(-z / H3))) / T
@@ -157,21 +160,53 @@ def get_edens(rgeo, ray_datenum): # input in Mm
     edens = ne
     idens = np.empty((1,2))
 
-    idens[0,0] = ne / (1.0 + R13)
+    # fudge_factor for o dens -- too high? 
+    ff = 0.45
+    idens[0,0] = ff*ne / (1.0 + R13)
     if (R13 > 1e-30):
         idens[0,1] = ne / (1.0 + 1.0 / R13)
     else:
         idens[0,1] = 0.0
-
+    print(edens,idens)
     return edens, idens
 
 
 # ----------------------- some test runs ---------------------
-ray_datenum = dt.datetime(2020,5,19,15,47, tzinfo=dt.timezone.utc)
-ray_start = [5824677.7777794544,       -6758550.8643073505,        4556168.2153918259]
+ray_datenum = dt.datetime(2014,1,1,12,0, tzinfo=dt.timezone.utc)
+ray_start = [10566782.256884905,        20779954.593417391,        2440378.7949459073]
 ray_start = convert2([ray_start],[ray_datenum],'SM','car',['m','m','m'],'GEO','car',['m','m','m'])
 edens,idens = get_edens(np.array(ray_start[0])/1e6,ray_datenum)
-print(edens,idens)
+     
+# ne=   713500969.23876691     
+# noh=   3.2972745831626054E-011
+# zbrat=   0.013818528031958991E-002
+# 
+
+# somewhat accurate far away, inacurate up close
+# in Mm
+# for an equatorial slice
+"""
+edens_array = []
+odens_array = []
+hdens_array = []
+
+lshells = np.linspace(1,7,num=100) 
+for i in lshells:
+    ray_start = [[i*6371200,0,0]]
+    edens,idens = get_edens(np.array(ray_start[0])/1e6,ray_datenum)
+    edens_array.append(np.log10(edens))
+    odens_array.append(np.log10(idens[0,0]))
+    hdens_array.append(np.log10(idens[0,1]))
+
+plt.plot(lshells,edens_array)
+plt.plot(lshells,odens_array)
+plt.plot(lshells,hdens_array)
+plt.grid()
+plt.xlim(0.5,5)
+plt.ylim(6,12)
+plt.show()
+plt.close()
+""" 
 """
 xrego = np.linspace(-4e4/1e3,4e4/1e3,num=100)
 zrego = np.linspace(-4e4/1e3,4e4/1e3,num=100)
