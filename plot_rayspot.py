@@ -13,6 +13,7 @@ from convert_coords import convert2
 import cartopy
 import cartopy.crs as ccrs
 import matplotlib.pyplot as plt 
+from matplotlib import ticker, cm
 import random
 from random import randrange, uniform
 import matplotlib as mpl
@@ -27,21 +28,21 @@ rayfile_directory = '/media/rileyannereid/DEMETER/SR_output' # store output here
 
 # setup
 mds = [7] # or 7
-nrays = 10000
+nrays = 100000
 nworkers = 16
 
 freqs = [28]
 freqs = np.array(freqs)*1e3
 freq = 28e3
-run_the_rays = True
+run_the_rays = False
 run_damp = False
 
 opp_hemis = [False]
 
-ray_date_starts = [dt.datetime(2020,5,28,2,18,30,tzinfo=dt.timezone.utc)]
-ray_date_start = dt.datetime(2020,5,28,2,18,30,tzinfo=dt.timezone.utc)
+ray_date_starts = [dt.datetime(2020,7,27,20,54,45,tzinfo=dt.timezone.utc)]
+ray_date_start = dt.datetime(2020,7,27,20,54,45,tzinfo=dt.timezone.utc)
 wprs = np.array([37])
-nray_use = 50000
+nray_use = nrays
 wprs = wprs/nrays
 
 tt_increment = [0]
@@ -479,17 +480,21 @@ else:
 
                 # finally get to V/m 
                 E_field = np.sqrt( 2*wpr*hw[0] / ( C*EPS0*bin_area ))
+                E_field[E_field == 0] = np.nan # or use np.nan
                 
                 # get avg wnas in degs
-                wna_avg = np.divide(hh[0], h[0], out=np.zeros_like(hh[0]), where=h[0]!=0)
+                wna_avg = np.divide(hh[0], h[0])# out=np.zeros_like(hh[0]), where=h[0]!=0)
                 
                 # -------------------------------------- create contours ----------------------------------
                 binlat = np.array(binlat)
                 binlon = np.array(binlon)
 
-                ef_ray = ax2.contourf(binlon[:-1]+dx/2,binlat[:-1] + dy/2, np.transpose(h[0]), 10, zorder=10,alpha=0.5,cmap='coolwarm')
-                ef_wna = ax3.contourf(binlon[:-1]+dx/2,binlat[:-1] + dy/2, np.transpose(wna_avg), 10, zorder=10,alpha=0.5,cmap='coolwarm')
-                ef_power = ax4.contourf(binlon[:-1]+dx/2,binlat[:-1] + dy/2, np.transpose(E_field*10**6),10, zorder=10,alpha=0.5,cmap='coolwarm')
+                rlevels = np.linspace(1,1650,12)
+                plevels = np.linspace(0,6,11)
+
+                ef_ray = ax2.contourf(binlon[:-1]+dx/2,binlat[:-1] + dy/2, np.transpose(h[0]), rlevels, zorder=10,alpha=0.5,cmap='coolwarm')
+                ef_wna = ax3.contourf(binlon[:-1]+dx/2,binlat[:-1] + dy/2, np.transpose(wna_avg), 12, zorder=10,alpha=0.5,cmap='coolwarm')
+                ef_power = ax4.contourf(binlon[:-1]+dx/2,binlat[:-1] + dy/2, np.transpose(E_field*10**6),plevels,zorder=10,alpha=0.5,cmap='coolwarm') #np.logspace(np.log10(0.01),np.log10(20), n_levels), locator=ticker.LogLocator())
 
                 cbar = plt.colorbar(ef_ray,ax=ax2,orientation='horizontal',pad=0.03,label='# rays')
                 cbar.outline.set_edgecolor('white')
@@ -509,7 +514,7 @@ else:
                 T_footpoint = T_repack[0]
                 
                 T_convert = convert2([T_footpoint], [ray_datenum], 'SM','car',['Re','Re','Re'], 'GEO', 'sph', ['Re','deg','deg'])
-                
+                print(T_convert)
                 # -------------------------------------------- final plot stuff ------------------------------------
                 from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
                 for ax in [ax2,ax3,ax4]:
@@ -572,6 +577,10 @@ else:
                     ax1.set_ylabel('% of ' + str(0)+'% \n that mirrored', fontsize=8, fontweight='black', color = '#333F4B')
                     ax1.annotate('wna', (0.97, -0.16), xycoords='axes fraction', va='center')
                 ax1.set_facecolor('white')
+                #ax2.set_facecolor('#333F4B')
+                #ax3.set_facecolor('#333F4B')
+                #ax4.set_facecolor('#333F4B')
+                
                 # -------------------------- finally title and save ------------------------
                 grid.update(wspace=0.01, hspace=0.05) # set the spacing between axes. 
 
