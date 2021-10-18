@@ -2,3 +2,5 @@ TNT_logs/*
 __pycache__/*
 code_from_michael/*
 burst_plots_sectioned/*
+*.txt
+*.json
